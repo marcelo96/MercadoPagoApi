@@ -19,11 +19,19 @@ let productos = {
   },
   "2":{
     "nombre":"libreta",
-    "precio":6
+    "precio":15
   },
   "3":{
     "nombre":"goma",
-    "precio":7
+    "precio":3
+  },
+  "4":{
+    "nombre":"colores",
+    "precio":10
+  },
+  "5":{
+    "nombre":"hojas",
+    "precio":2
   }
 };
 
@@ -34,15 +42,15 @@ router.get('/', function(req, res, next) {
 });
 
 //Crear una preferencia de pago
-router.get('/pagar/:i', (req, res) => {
-  let i = req.params.i;
-  let op = productos[i];
-  console.log('V: ' + i, 'Producto elegido: ' , op);
+router.get('/pago/pagar/:id', (req, res) => {
+  let id = req.params.id;
+  let op = productos[id];
+  // console.log('V: ' + id, 'Producto elegido: ' , op);
 
   var preference = {
     items: [
       {
-        id: i,
+        id: id,
         title: op.nombre,
         quantity: 1,
         currency_id: 'MXN',
@@ -57,36 +65,90 @@ router.get('/pagar/:i', (req, res) => {
   if(op){
     mercadopago.preferences.create(preference).then(function (preference) {
       const p = preference;
-      console.log('Item de pago: ',p.body.items[0]);
+      // console.log('Item de pago: ',p.body.items[0]);
+      console.log('Información de la preferencia',p.body);
+      
       // console.log('Informacion pasada a la vista', p.body.sandbox_init_point);
       res.render('index', {v:p.body.items[0].title,urlPago:p.body.sandbox_init_point});
     }).catch(function (error) {
       console.log(error);
-      return mercadopago.preferences.create(preference, {
-        qs: {
-          idempotency: mpError.idempotency
-        }
-      });
+    });
+  }
+});
+
+// crear un pago
+router.get('/otropago', (req, res) => {
+  var payment = {
+    description: 'Pagando PS4',
+    transaction_amount: 15,
+    payment_method_id: 'visa',
+    payer: {
+      email: 'test_user_3931694@testuser.com',
+      identification: {
+        type: 'DNI',
+        number: '34123123'
+      }
+    }
+  };
+  
+  mercadopago.payment.create(payment).then(function (mpResponse) {
+    console.log(mpResponse);
+  }).catch(function (mpError) {
+    return mercadopago.payment.create(payment, {
+      qs: {
+        idempotency: mpError.idempotency
+      }
+    });
+  }).then(function(mpResponse){
+    console.log(mpResponse);
+  });
+});
+
+//p1. 406264130-2ef0b72a-8969-43d8-be7b-1309e239af38
+//p2. 406264130-223ae492-ec42-4601-a6c5-d285f42677ac'
+
+// cliente_id : 5908568980084275
+// cliente_id : 5908568980084275
+
+// Cancelar pago
+router.get('/pago/cancelar/:ide', (req, res) => {
+  let ide = req.params.ide;
+  // res.send(ide+'');
+  console.log('id de pago: ', ide);
+  
+  if(ide){
+    mercadopago.payment.update({
+      id: ide,
+      status: "cancelled"
+    }).then(function(ok){
+      res.sendStatus(200);
+      console.log(ok);
+      
+    }).catch(function(err){
+      res.sendStatus(500);
+      console.log(err);
+      
     });
   }
 });
 
 // Obtener pagos realizados
 router.get('/obtenerpagos', (req, res) => {
-  var configurations = {
+  mercadopago.payment.search({
     qs: {
-      'payer.id': 'me'
+      'collector.id': 'me'
     }
-  };
-  
-  mercadopago.payment.search(configurations, function(error, respuesta){
-    if(error){
-      console.log(error);
-      res.sendStatus(500);
-    }
-    console.log(respuesta);
-    res.sendStatus(200);
+  }).then(function (mpResponse) {
+    console.log(mpResponse.body.results[0]);
+    res.status(200).json(mpResponse.body.results);
+  }).catch(function(err){
+    res.sendStatus(500);
   });
+});
+
+// Notificaciones
+router.get('/notificaciones', (req, res) => {
+  res.sendStatus(200);
 });
 
 module.exports = router;

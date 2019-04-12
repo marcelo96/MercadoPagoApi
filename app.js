@@ -15,6 +15,8 @@ app.engine('hbs',engines.handlebars);
 app.set('views',"./views");
 app.set('view engine',"hbs");
 
+app.set('json spaces',6);
+
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
